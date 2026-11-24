@@ -23,16 +23,41 @@ def home():
     return render_template("home.html", user=current_user)
 
 
-@views.route('/delete-note', methods=['POST'])
-def delete_note():
-    data = json.loads(request.data)
-    noteId = data['noteId']
+@views.route('/api/chat', methods=['POST'])
+@login_required
+def chat_api():
+    data = request.get_json()
+    user_message = data.get('message', '').strip()
+    
+    response_text = "Я получил ваше сообщение! Скоро я научусь отвечать на все вопросы по кибербезопасности."
+    action = None
+
+    # Интерактивная команда: создаем заметку прямо через чат
+    if user_message.lower().startswith('запомни:'):
+        note_content = user_message[8:].strip()
+        if note_content:
+            new_note = Note(data=note_content, user_id=current_user.id)
+            db.session.add(new_note)
+            db.session.commit()
+            response_text = "Готово! Я добавил эту запись в ваши заметки."
+            action = "reload_notes"
+        else:
+            response_text = "Вы не указали текст после слова 'Запомни:'."
+
+    return jsonify({
+        'reply': response_text,
+        'action': action
+    })
+
+
+@views.route('/delete-note/<int:noteId>', methods=['POST', 'GET'])
+def delete_note(noteId):
     note = Note.query.get(noteId)
     if note:
         if note.user_id == current_user.id:
             db.session.delete(note)
             db.session.commit()
-    return redirect(url_for('views.home') + '#notes-section')
+    return redirect(url_for('views.home'))
 
 @views.route('/quiz')
 def quiz():

@@ -24,9 +24,9 @@ def login():
                 login_user(user, remember=True) 
                 return redirect(url_for('views.home'))
             else:
-                flash('Incorrect password, try again.', category='error')
+                flash('Неверный пароль, попробуйте снова.', category='error')
         else:
-            flash('Email does not exist.', category='error')
+            flash('Почта не найдена.', category='error')
 
     return render_template("login.html", user=current_user)
 
@@ -47,20 +47,20 @@ def sign_up():
         user = User.query.filter_by(email=email).first()
 
         if user:
-            flash('Email already exists.', category='error')
+            flash('Такая почта уже зарегестрирована.', category='error')
         elif len(email)  < 4:
-            flash('Email must be greater than 3 characters.', category='error')
+            flash('Почта должна быть длиннее 3 символов.', category='error')
         elif len(first_name) < 2:
-            flash('First name be greater than 1 character.', category='error')
+            flash('Имя должно быть длиннее 1 символа.', category='error')
         elif password1 != password2:
-            flash('Password dont\'t match.', category='error')
+            flash('Пароли не совпадают.', category='error')
         elif len(password1) < 7:
-            flash('Password must be at least 7 characters.', category='error')
+            flash('Пароль должен быть длиннее 6 символов.', category='error')
         else:
             new_user = User(email=email, first_name=first_name, password=generate_password_hash(password1))
             db.session.add(new_user)
             db.session.commit()
-            flash('Account created!', category='success')
+            flash('Аккаунт создан!', category='success')
             return redirect(url_for('views.home'))
 
     return render_template("sign_up.html", user=current_user)
@@ -78,14 +78,13 @@ def forgot_password():
             flash('Пользователь с таким email не найден.', 'error')
             return redirect(url_for('auth.forgot_password'))
 
-       
-        token = secrets.token_urlsafe(32)
+       # 1. Сначала создаем объект ResetToken (он сам сгенерирует токен и запишет его в базу)
         reset = ResetToken(user_id=user.id)
         db.session.add(reset)
         db.session.commit()
 
-       
-        reset_url = url_for('auth.reset_password', token=token, _external=True)
+        # 2. В ссылку передаем токен, который сохранился в базе (reset.token)
+        reset_url = url_for('auth.reset_password', token=reset.token, _external=True)
 
         # Отправляем письмо  деду
         msg = Message(
@@ -127,5 +126,5 @@ def reset_password(token):
             flash('Пароль успешно изменён! Теперь можешь войти.', 'success')
             return redirect(url_for('auth.login'))
 
-    return render_template('reset_password.html', token=token)
+    return render_template('reset_password.html', token=token, user=current_user)
 

@@ -35,6 +35,9 @@ def create_app():
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
+    # Переводим системное сообщение о входе на русский язык
+    login_manager.login_message = "Пожалуйста, войдите в систему, чтобы получить доступ к этой странице."
+    login_manager.login_message_category = "error"
     login_manager.init_app(app)
 
     @login_manager.user_loader

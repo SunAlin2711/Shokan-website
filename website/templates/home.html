@@ -6,21 +6,20 @@
 
 <!-- Hero Section – full-width без отступов по бокам -->
 <section class="text-white text-center py-5"
-         style="background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
-                url('https://cdn.discordapp.com/attachments/1444106238198677555/1481831252771344465/b51eaf6f-0224-4e62-98f4-95858af1965f.png?ex=69b4be65&is=69b36ce5&hm=91f4dce99904c7fd84b6d7e6de9b67f065e0b68415beb372b509b7a1fda80485&');
-                background-size: cover; 
-                background-position: center 10%; 
-                background-repeat: no-repeat;
-                min-height: 100vh;
+         style="min-height: 100vh;
                 width: 99.6vw;                  /* ← полная ширина viewport */
                 margin-left: calc(-50vw + 50%); /* ← центрируем без отступов Bootstrap */
                 margin-right: calc(-50vw + 50%);
                 position: relative;
                 display: flex; 
                 align-items: center;
-                padding-top: 140px;          /* ← вот это добавь или измени значение */
-                
+                padding-top: 80px;          
                 ">
+
+  <!-- Обычная стандартная картинка с темным фильтром поверх нее -->
+  <img src="{{ url_for('static', filename='images/main.png') }}" 
+       alt="Главная картинка" 
+       style="position: absolute; top: -100px; left: 0; width: 100%; height: calc(100% + 100px); object-fit: cover; z-index: -1; filter: brightness(0.35);">
   <div class="container">  <!-- ← container только для текста/кнопок внутри, чтобы они не растягивались -->
     <h1 class="display-4 fw-bold mb-4">Добро пожаловать в Shokan</h1>
     <p class="lead fs-4 mb-5">
@@ -93,7 +92,7 @@
     <!-- Форма добавления (в красивой карточке) -->
     <div class="card shadow-sm border-0 mb-5">
       <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="note-form">
           <textarea 
             name="note" 
             class="form-control form-control-lg mb-3" 
@@ -120,23 +119,20 @@
     {% if user.notes %}
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="notes">
         {% for note in user.notes %}
-          <div class="col">
+          <div class="col" id="note-{{ note.id }}">
             <div class="card h-100 shadow note-card border-0">
               <div class="card-body d-flex flex-column">
                 <p class="card-text flex-grow-1 mb-3" style="white-space: pre-wrap;">{{ note.data }}</p>
                 
                 <div class="d-flex justify-content-between align-items-center mt-auto">
                   <small class="text-muted">
-                    {% if note.date_created %}{{ note.date_created.strftime('%d.%m.%Y %H:%M') }}{% else %}Без даты{% endif %}
-                  </small>
-                  <button 
-                    type="button" 
+                    {% if note.date %}{{ note.date.strftime('%d.%m.%Y %H:%M') }}{% else %}Без даты{% endif %}
+                  <a href="{{ url_for('views.delete_note', noteId=note.id) }}" 
                     class="btn btn-sm btn-outline-danger"
-                    onclick="deleteNote({{ note.id }})"
-                    title="Удалить"
-                  >
-                    <i class="fa fa-trash"></i>
-                  </button>
+                    onclick="sessionStorage.setItem('scrollPosition', window.scrollY);"
+                    title="Удалить">
+                      <i class="fa fa-trash"></i>
+                  </a>
                 </div>
               </div>
             </div>
@@ -202,5 +198,61 @@
     color: #ffd700;  /* золотистый текст на hover — опционально, можно оставить #f0e6d2 */
   }
 </style>
+
+<script>
+    // Добавление заметки с сохранением точной позиции скролла (без скачков)
+    const noteForm = document.getElementById('note-form');
+    if (noteForm) {
+        noteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const textarea = this.querySelector('textarea[name="note"]');
+            const noteText = textarea.value;
+
+            if (noteText.trim().length < 1) return;
+
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'note=' + encodeURIComponent(noteText)
+            }).then(() => {
+                textarea.value = '';
+                // Запоминаем текущий пиксель экрана перед перезагрузкой
+                sessionStorage.setItem('scrollPosition', window.scrollY);
+                window.location.reload();
+            });
+        });
+    }
+
+    // Восстанавливаем точное положение экрана сразу после загрузки
+    document.addEventListener("DOMContentLoaded", function() {
+        const scrollPos = sessionStorage.getItem('scrollPosition');
+        if (scrollPos) {
+            window.scrollTo(0, parseInt(scrollPos));
+            sessionStorage.removeItem('scrollPosition');
+        }
+    });
+
+    // Удаление заметки без дерганья и с мгновенным исчезновением
+    function deleteNote(noteId) {
+        // Запоминаем текущую позицию экрана прямо перед кликом
+        sessionStorage.setItem('scrollPosition', window.scrollY);
+
+        // Отправляем запрос на удаление
+        fetch('/delete-note', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ noteId: noteId }),
+        }).then(() => {
+            // Мгновенно обновляем страницу — а скролл вернется на то же место
+            window.location.href = "/#notes-section";
+            window.location.reload();
+        });
+    }
+    
+</script>
 
 {% endblock %}
